@@ -1,0 +1,13 @@
+# Dev / CI test dependencies (install into venv):
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   python -m tests.test_limits_proxies
+#   python -m tests.test_audit_package_a
+#   python -m tests.test_audit_package_b
+#   python -m tests.test_dedup
+#   python -m tests.test_ux_render
+#   python -m tests.test_ux_audit_fixes
+#
+# Runtime deps are listed in requirements.txt (also needed for tests).
+
+-r requirements.txt
+pytest>=7.4.0,<9

@@ -1,0 +1,7 @@
+requests>=2.31.0
+pyTelegramBotAPI>=4.14.0
+python-dotenv>=1.0.0
+PySocks>=1.7.1
+# Lets requests decode Brotli responses. Without it every server that honours
+# our Accept-Encoding: br answers with bytes we hand to json() as garbage.
+brotli>=1.1.0

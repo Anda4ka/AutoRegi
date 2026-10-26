@@ -1,0 +1,41 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests (pytest)
+        env:
+          BOT_TOKEN: test:token
+        run: |
+          # One pytest process for the whole suite: it collects both the
+          # legacy self-running modules and the plain test_* functions
+          # (which the old per-module `python -m` runner silently skipped —
+          # a test file without a main() imported clean and ran nothing).
+          # CI is deliberately hermetic: no .env in the checkout, so any
+          # test that borrows ADMIN_IDS (or another machine-local value)
+          # fails HERE first — tests must create their own preconditions.
+          # The suite is verified to pass in this exact shape (no .env,
+          # BOT_TOKEN only) before each workflow change.
+          #
+          # The legacy per-module runner (`python -m tests.<mod>`) still
+          # works locally for debugging a single module in isolation.
+          pytest -q tests/

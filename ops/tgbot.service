@@ -1,0 +1,33 @@
+[Unit]
+Description=Autoreg Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=autoreg
+Group=autoreg
+WorkingDirectory=/opt/autoreg
+Environment=PYTHONUNBUFFERED=1
+# Persistent runtime state survives clean deploys of WorkingDirectory.
+Environment=AUTOREG_STATE_DIR=/var/lib/autoreg
+# Secrets are loaded from .env by python-dotenv inside the app.
+ExecStart=/opt/autoreg/venv/bin/python -u /opt/autoreg/tgbot.py
+Restart=on-failure
+RestartSec=5
+# New files (state, payload, backups) stay owner-only.
+UMask=0077
+
+# The default soft limit is 1024, and nothing here had chosen otherwise. One
+# process holds the bot's handler threads, the submit queue, the mini app's
+# thread-per-connection server and a SQLite connection per query — on
+# 2026-08-17 that reached the ceiling twice, once as "[Errno 24] Too many open
+# files" writing a queue payload and once as SQLite's "unable to open database
+# file", which is the same exhaustion wearing a misleading message. The leak
+# behind it is fixed in bot/db.py; this is the headroom, not the fix.
+LimitNOFILE=65535
+
+# Do NOT also run `screen -S tgbot` with the same BOT_TOKEN (409 Conflict).
+
+[Install]
+WantedBy=multi-user.target

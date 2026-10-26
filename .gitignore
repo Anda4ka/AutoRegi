@@ -1,0 +1,35 @@
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/user_proxies/*.txt
+!data/user_proxies/.gitkeep
+data/user_data/*.txt
+!data/user_data/.gitkeep
+data/job_payloads/*
+!data/job_payloads/.gitkeep
+bot_results.jsonl
+results*.jsonl
+proxy.txt
+message.txt
+active_subscribers.txt
+*.log
+.env.bak-*
+.env.bak.*
+.env.*.bak
+.env.*.bak
+
+# standalone runners: never commit keys or exported winners
+standalone/**/keys.txt
+standalone/**/winners.txt
+standalone/**/state.db
+
+# state
+.autoreg/
+.pytest_cache/
+.ruff_cache/

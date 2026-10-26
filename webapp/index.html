@@ -1,0 +1,1676 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Регистрации</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  /* One palette, not the client's. A branded app that repaints itself to match
+     whoever opens it has no look of its own; this one is dark on purpose and
+     stays dark. The cost is real and worth naming: someone running Telegram in
+     light theme gets a black panel inside a white chat. */
+  :root {
+    --bg: #0F0F12;
+    --card: #1A1A1F;
+    --card-2: #222228;
+    --line: rgba(255,255,255,.06);
+    --text: #F4F4F6;
+    --muted: #8A8A96;
+    --accent: #A855F7;
+    --accent-deep: #9333EA;
+    --accent-soft: rgba(168,85,247,.14);
+    --ok: #4ADE80;
+    --warn: #FBBF24;
+    --bad: #F87171;
+    --tabs-h: 62px;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    padding: 16px 14px calc(var(--tabs-h) + env(safe-area-inset-bottom, 0px) + 20px);
+    background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- header ---- */
+  .head { display: flex; justify-content: space-between; align-items: flex-end;
+          gap: 12px; margin-bottom: 16px; }
+  .head-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+  .head-cap { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .pill { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+          padding: 5px 10px; border-radius: 999px; background: var(--accent-soft);
+          color: var(--accent); border: 1px solid rgba(168,85,247,.28); }
+  .pill.grey { background: rgba(255,255,255,.05); color: var(--muted); border-color: var(--line); }
+
+  h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--muted); font-weight: 600; margin: 22px 0 9px; }
+  h2:first-of-type { margin-top: 6px; }
+
+  /* ---- buttons ---- */
+  button {
+    font: inherit; font-size: 13.5px; font-weight: 600; border: 0; border-radius: 10px;
+    padding: 8px 15px; background: var(--accent); color: #fff; cursor: pointer;
+    white-space: nowrap; transition: transform .12s ease, opacity .12s ease;
+  }
+  button:active { transform: scale(.95); }
+  button:disabled { opacity: .35; transform: none; }
+  button.ghost { background: rgba(255,255,255,.07); color: var(--text);
+                 border: 1px solid var(--line); }
+  button.small { font-size: 12.5px; padding: 6px 12px; border-radius: 9px; }
+  .cta {
+    width: 100%; padding: 15px; font-size: 15.5px; font-weight: 700; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+    box-shadow: 0 8px 24px -8px rgba(168,85,247,.7);
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    margin-bottom: 16px;
+  }
+  .cta span { font-size: 12.5px; font-weight: 600; opacity: .8; }
+
+  /* ---- project cards: one line of content, a card to look at ---- */
+  .card {
+    position: relative; background: var(--card); border-radius: 13px;
+    margin-bottom: 7px; overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--muted); opacity: .5;
+  }
+  .card.go::before { background: linear-gradient(180deg, var(--accent), var(--accent-deep));
+                     opacity: 1; }
+  .card.won::before { background: var(--ok); opacity: .9; }
+  .card.busy::before { background: var(--accent); opacity: .55; }
+  .card-row { display: flex; align-items: center; gap: 10px; padding: 12px 13px 12px 16px; }
+  .card-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+               white-space: nowrap; font-weight: 550; }
+  .card.dim .card-name { color: var(--muted); }
+  .count { font-size: 13px; font-weight: 650; color: var(--accent); }
+  .count-cap { font-size: 11px; color: var(--muted); margin-left: -5px; }
+  .tag { font-size: 11px; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+         background: rgba(255,255,255,.05); color: var(--muted); }
+  .tag.run { background: var(--accent-soft); color: var(--accent); }
+  .tag.ok { background: rgba(74,222,128,.13); color: var(--ok); }
+  .tag.err { background: rgba(248,113,113,.13); color: var(--bad); }
+  .tag.warn { background: rgba(251,191,36,.13); color: var(--warn); }
+
+  .detail { padding: 0 14px 13px 16px; color: var(--muted); font-size: 12.5px; }
+  .detail .mint { color: var(--text); background: var(--card-2); border-radius: 9px;
+                  padding: 9px 11px; margin-bottom: 9px; font-size: 12.5px; line-height: 1.45; }
+  .detail .mint b { color: var(--accent); font-weight: 600; display: block;
+                    font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+                    margin-bottom: 3px; }
+  .links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+
+  /* ---- the 7/30-day history chart: columns of divs, heights in px ---- */
+  .chart { display: flex; align-items: flex-end; gap: 6px; overflow-x: auto;
+    padding: 8px 0 2px; }
+  .chart-col { display: flex; flex-direction: column; justify-content: flex-end;
+    align-items: center; gap: 2px; min-width: 26px; }
+  .chart-bar { width: 18px; border-radius: 4px 4px 0 0; }
+  .chart-bar.ok { background: var(--ok, #34c77b); }
+  .chart-bar.err { background: var(--err, #e0634f); opacity: .8; }
+  .chart-cap { font-size: 10px; opacity: .6; white-space: nowrap; }
+  .fold { display: flex; justify-content: space-between; align-items: center;
+          padding: 13px 14px; color: var(--muted); font-size: 13px; cursor: pointer;
+          background: var(--card); border-radius: 13px; margin-bottom: 7px; }
+  .fold b { color: var(--text); font-weight: 600; }
+
+  /* ---- queue ---- */
+  .job { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 8px; }
+  .job.live { box-shadow: inset 0 0 0 1px rgba(168,85,247,.3); }
+  .job-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .job-name { font-weight: 650; font-size: 15.5px; min-width: 0; overflow: hidden;
+              text-overflow: ellipsis; white-space: nowrap; }
+  .job-sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,.06);
+         margin: 12px 0 9px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 999px;
+             background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+             transition: width .6s cubic-bezier(.4,0,.2,1); }
+  .counts { display: flex; flex-wrap: wrap; gap: 5px 14px; font-size: 12.5px;
+            color: var(--muted); }
+  .counts b { font-weight: 650; }
+  .c-ok b { color: var(--ok); }
+  .c-bad b { color: var(--warn); }
+  .c-fail b { color: var(--bad); }
+  .blank { text-align: center; padding: 40px 16px; }
+  .blank i { display: block; font-size: 40px; font-style: normal; opacity: .5;
+             margin-bottom: 12px; }
+  .blank p { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; }
+
+  /* ---- mine ---- */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .big { background: var(--card); border-radius: 14px; padding: 14px; }
+  .big.warn { box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); }
+  .big-num { font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+  .big-cap { color: var(--muted); font-size: 11.5px; margin-top: 4px; }
+  .vip { background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(147,51,234,.08));
+         border: 1px solid rgba(168,85,247,.3); border-radius: 14px; padding: 15px;
+         margin-bottom: 8px; }
+  .vip-name { font-size: 17px; font-weight: 700; color: var(--accent); }
+  .vip-sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .setup { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 8px; }
+  .setup-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .setup-title { font-weight: 650; }
+  .setup-val { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  textarea {
+    width: 100%; margin-top: 10px; min-height: 110px; resize: vertical;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 11px;
+    font: 12.5px/1.45 ui-monospace, Menlo, monospace;
+  }
+  textarea:focus { outline: none; border-color: rgba(168,85,247,.5); }
+  .hint { color: var(--muted); font-size: 11.5px; margin-top: 8px; }
+  .mono { font: 12.5px/1.5 ui-monospace, Menlo, monospace; word-break: break-all;
+          background: var(--bg); border-radius: 9px; padding: 10px 11px; margin: 7px 0;
+          user-select: all; -webkit-user-select: all; }
+  .pay-label { color: var(--muted); font-size: 10.5px; text-transform: uppercase;
+               letter-spacing: .07em; margin-top: 10px; }
+  .list { background: var(--card); border-radius: 13px; overflow: hidden; }
+  .list .line { display: flex; justify-content: space-between; align-items: center;
+                padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .list .line:last-child { border-bottom: 0; }
+  .list .line span { color: var(--muted); font-size: 13px; }
+  .errs .line { font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--muted);
+                display: block; }
+  .note { background: rgba(251,191,36,.1); color: var(--warn); border-radius: 12px;
+          padding: 12px 14px; font-size: 13px; margin-bottom: 14px; }
+  .note.bad { background: rgba(248,113,113,.1); color: var(--bad); }
+
+  /* ---- mint calendar ---- */
+  .day { display: flex; align-items: baseline; gap: 8px; margin: 20px 0 9px; }
+  .day:first-of-type { margin-top: 4px; }
+  .day b { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .day span { color: var(--muted); font-size: 11.5px; text-transform: uppercase;
+              letter-spacing: .06em; }
+  .day.soon b { color: var(--accent); }
+  .mint { background: var(--card); border-radius: 13px; padding: 13px 14px 12px 16px;
+          margin-bottom: 7px; position: relative; overflow: hidden; }
+  .mint::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+                  background: var(--accent); }
+  .mint.later::before { background: var(--muted); opacity: .45; }
+  .mint-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .mint-name { font-weight: 650; font-size: 15px; min-width: 0; overflow: hidden;
+               text-overflow: ellipsis; white-space: nowrap; }
+  .mint-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .phase { display: flex; align-items: baseline; gap: 8px; margin-top: 9px; font-size: 13.5px; }
+  .phase.past { opacity: .35; }
+  .phase-time { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 44px; }
+  .phase-kind { font-size: 10px; font-weight: 700; letter-spacing: .07em;
+                text-transform: uppercase; color: var(--accent);
+                background: var(--accent-soft); border-radius: 5px; padding: 2px 6px; }
+  .phase-utc { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+  .phase-price { color: var(--text); font-size: 12.5px; margin-left: auto; font-weight: 550; }
+  .mint-note { color: var(--muted); font-size: 12.5px; margin-top: 9px; line-height: 1.45; }
+  .mint-links { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 11px; }
+  .lnk { font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 8px;
+         background: rgba(255,255,255,.06); color: var(--text);
+         border: 1px solid var(--line); cursor: pointer; }
+  .lnk.go { background: var(--accent-soft); color: var(--accent);
+            border-color: rgba(168,85,247,.3); }
+
+  /* ---- tab bar ---- */
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; display: flex;
+    background: rgba(20,20,24,.92); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tab { flex: 1; position: relative; text-align: center; padding: 11px 4px 12px;
+         cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 550;
+         transition: color .15s ease; }
+  .tab i { display: block; font-size: 20px; font-style: normal; margin-bottom: 3px;
+           opacity: .55; transition: opacity .15s ease, filter .15s ease; }
+  .tab.on { color: var(--accent); }
+  .tab.on i { opacity: 1; filter: drop-shadow(0 0 7px rgba(168,85,247,.65)); }
+  .tab.on::after { content: ""; position: absolute; left: 50%; bottom: 6px;
+                   transform: translateX(-50%); width: 20px; height: 2.5px;
+                   border-radius: 999px; background: var(--accent);
+                   box-shadow: 0 0 8px rgba(168,85,247,.8); }
+  .tab sup { position: absolute; top: 6px; left: 50%; margin-left: 6px;
+             font-size: 9.5px; font-weight: 700; color: #fff; background: var(--accent);
+             border-radius: 999px; padding: 1px 5px; }
+
+  @keyframes pop { 0% { transform: scale(.85); opacity: 0; }
+                   100% { transform: scale(1); opacity: 1; } }
+  .pop { animation: pop .22s cubic-bezier(.34,1.56,.64,1); }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  /* ---- gform constructor ---- */
+  /* The yellow action button is the screen's own accent: parsing and creating
+     are the two things this tab exists for, and they read as "go" rather than
+     as the purple navigation chrome everywhere else. */
+  button.warnbtn { background: var(--warn); color: #201500; }
+  .gf-url {
+    display: flex; gap: 7px; margin-bottom: 14px;
+  }
+  .gf-url input {
+    flex: 1; min-width: 0; font: inherit; font-size: 13px; color: var(--text);
+    background: var(--card-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; outline: none;
+  }
+  .gf-field { background: var(--card); border-radius: 13px; padding: 12px 13px;
+              margin-bottom: 7px; }
+  .gf-field.unmapped { border: 1px solid rgba(248,113,113,.45); }
+  .gf-title { font-weight: 600; font-size: 13.5px; margin-bottom: 2px; }
+  .gf-title .req { color: var(--bad); }
+  .gf-entry { font: 11.5px/1.4 ui-monospace, monospace; color: var(--muted);
+              margin-bottom: 9px; }
+  .gf-row { display: flex; gap: 7px; }
+  .gf-row select, .gf-row input {
+    flex: 1; min-width: 0; font: inherit; font-size: 13px; color: var(--text);
+    background: var(--card-2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px 10px; outline: none;
+  }
+  .gf-preview { color: var(--muted); font-size: 12px; margin-top: 8px;
+                word-break: break-all; }
+  .gf-preview b { color: var(--text); font-weight: 600; }
+  .gf-actions { display: flex; gap: 7px; margin: 14px 0; }
+  .gf-actions button { flex: 1; padding: 13px; font-size: 14.5px; }
+  select { appearance: none; -webkit-appearance: none; }
+</style>
+</head>
+<body>
+<div id="app"><div class="blank"><i>◌</i><p>Загрузка…</p></div></div>
+<div id="tabs"></div>
+
+<script>
+(function () {
+  "use strict";
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    // The app paints its own background; tell the client so the header and the
+    // area under the keyboard do not flash the chat's colour.
+    try { tg.setHeaderColor("#0F0F12"); tg.setBackgroundColor("#0F0F12"); } catch (e) {}
+  }
+
+  var app = document.getElementById("app");
+  var tabsEl = document.getElementById("tabs");
+  var POLL_MS = 4000;
+  // Shown at the bottom of every screen. Added after a deploy where the phone
+  // kept an older page and there was no way to tell a stale screen from a
+  // wrong answer without reading the served HTML.
+  var BUILD = "25.09 · 2";
+  var timer = null, stale = false, busy = false, last = null;
+
+  // Interaction state lives outside render(), so a poll landing mid-tap cannot
+  // fold the screen back up or throw away what was typed.
+  var tab = "projects";
+  var openRow = null, showBlocked = false, showAllRecent = false, showErrors = false;
+  var statsDays = 7, statsCache = {};   // days -> {at, data}
+  var editor = null, draft = "";
+  var justStarted = null;   // project id to flash as «запущено»
+
+  // Everything from the server is inserted as text, never markup. The server
+  // already strips the bot's HTML; this is the second lock on the same door.
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = String(text);
+    return n;
+  }
+
+  function haptic(kind) {
+    try { tg.HapticFeedback.notificationOccurred(kind); } catch (e) {}
+  }
+  function tap() {
+    try { tg.HapticFeedback.impactOccurred("light"); } catch (e) {}
+  }
+  function toast(msg) {
+    if (tg && tg.showAlert) { tg.showAlert(msg); return; }
+    window.alert(msg);
+  }
+  function confirm(msg, cb) {
+    if (tg && tg.showConfirm) { tg.showConfirm(msg, function (y) { if (y) cb(); }); return; }
+    if (window.confirm(msg)) cb();
+  }
+  function openLink(url) {
+    if (!url) return;
+    // Telegram's own opener keeps the user inside the client; a bare href in a
+    // webview can strand them in a browser with no way back to the app.
+    if (tg && tg.openLink) { tg.openLink(url); return; }
+    window.open(url, "_blank");
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { toast("Скопировано."); }, function () { toast(text); });
+      return;
+    }
+    toast(text);
+  }
+  function pickFile(onText) {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".txt,text/plain";
+    input.onchange = function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function () { onText(String(r.result || "")); };
+      r.onerror = function () { toast("Файл не прочитался."); };
+      r.readAsText(f);
+    };
+    input.click();
+  }
+  function num(n) { return Number(n || 0).toLocaleString("ru-RU"); }
+
+  function shortTag(code) {
+    return {
+      limit: "лимит", closed: "закрыт", config: "сломан", no_proxies: "нет прокси",
+      no_data: "нет данных", in_queue: "в очереди", locked: "тариф",
+      done: "всё сделано", nothing_to_send: "нечего слать"
+    }[code] || "недоступен";
+  }
+
+  // ---- projects -----------------------------------------------------------
+
+  function projectCard(p, canWrite, wonRecently) {
+    var cls = "card";
+    if (p.job_id) cls += " busy";
+    else if (p.can_start) cls += " go";
+    else if (wonRecently) cls += " won";
+    if (!p.can_start && !p.job_id) cls += " dim";
+    if (justStarted === p.id) cls += " pop";
+    var card = el("div", cls);
+
+    var row = el("div", "card-row");
+    var name = el("span", "card-name", p.name);
+    name.onclick = function () {
+      tap();
+      openRow = openRow === p.id ? null : p.id;
+      render(last);
+    };
+    row.appendChild(name);
+
+    if (p.job_id) {
+      row.appendChild(el("span", "tag run", p.job_status === "running" ? "идёт" : "в очереди"));
+    } else if (p.can_start) {
+      row.appendChild(el("b", "count", num(p.will_send)));
+      row.appendChild(el("span", "count-cap", "шт"));
+      if (canWrite) {
+        var go = el("button", "small", "Старт");
+        go.onclick = function () {
+          tap();
+          act("api/start", { project_id: p.id }, go, function (r) {
+            if (r.ok) justStarted = p.id;
+          });
+        };
+        row.appendChild(go);
+      }
+    } else {
+      row.appendChild(el("span", "tag" + (p.reason_code === "done" ? " ok" : ""),
+                         shortTag(p.reason_code)));
+    }
+    card.appendChild(row);
+    if (openRow === p.id) card.appendChild(projectDetail(p, canWrite));
+    return card;
+  }
+
+  function projectDetail(p, canWrite) {
+    var box = el("div", "detail");
+
+    if (p.mint_info) {
+      var mint = el("div", "mint");
+      mint.appendChild(el("b", null, "Минт"));
+      mint.appendChild(document.createTextNode(p.mint_info));
+      box.appendChild(mint);
+    }
+    var ex = el("button", "ghost small", "📤 Мои регистрации");
+    ex.onclick = function () {
+      tap();
+      act("api/results", { project_id: p.id }, ex, function (r) {
+        if (!r.ok || !r.text) return;
+        // The user's own wallets in their own session: offer a copy rather
+        // than a download, so nothing lands in the webview's file cache.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(r.text).then(
+            function () { toast("Скопировано: " + r.count + " строк"); },
+            function () { toast(r.count + " строк — буфер недоступен"); }
+          );
+        } else {
+          toast(r.count + " строк — буфер недоступен");
+        }
+      });
+    };
+    box.appendChild(ex);
+    box.appendChild(el("div", null, p.can_start
+      ? "отправим " + num(p.will_send) + " · слотов " + num(p.left) + " из " + num(p.limit)
+        + " · успешно " + num(p.ok_count)
+      : (p.reason_full || p.reason || "недоступен")));
+
+    var links = el("div", "links");
+    [[p.mint_url, "Минт"], [p.link, "Сайт"], [p.twitter_url, "X"]].forEach(function (pair) {
+      if (!pair[0]) return;
+      var b = el("button", "ghost small", pair[1]);
+      b.onclick = function () { openLink(pair[0]); };
+      links.appendChild(b);
+    });
+    if (links.childNodes.length) box.appendChild(links);
+
+    if (canWrite && p.can_deliver) {
+      var acts = el("div", "acts");
+      var keys = el("button", "ghost small", "Прислать ключи");
+      keys.onclick = function () { act("api/deliver", { project_id: p.id }, keys); };
+      acts.appendChild(keys);
+      box.appendChild(acts);
+    }
+    return box;
+  }
+
+  function tabProjects(s, canWrite, frag) {
+    var pk = s.privatka || {};
+    if (pk.win_banner) {
+      frag.appendChild(el("div", "note", pk.win_banner));
+      if (pk.url) {
+        var go = el("button", "cta");
+        go.appendChild(document.createTextNode("⭐ Приватка — подписка"));
+        go.onclick = function () {
+          tap();
+          if (tg && tg.openTelegramLink) tg.openTelegramLink(pk.url);
+          else openLink(pk.url);
+        };
+        frag.appendChild(go);
+      }
+    }
+    var caps = s.caps || {};
+    if (canWrite && caps.can_start_all) {
+      var all = el("button", "cta");
+      all.appendChild(el("span", null, "⚡"));
+      all.appendChild(document.createTextNode("Запустить все"));
+      all.appendChild(el("span", null, (caps.eligible || 0) + " проект."));
+      all.onclick = function () {
+        tap();
+        confirm("Запустить все доступные проекты?", function () {
+          act("api/start_all", {}, all);
+        });
+      };
+      frag.appendChild(all);
+    }
+
+    // Green strip = this project produced a finished job recently. It is the
+    // only "recently successful" signal the screen actually has.
+    var won = {};
+    (s.recent || []).forEach(function (j) {
+      if (j.status === "done" && j.ok > 0) won[j.project_id] = true;
+    });
+
+    var projects = s.projects || [];
+    var ready = projects.filter(function (p) { return p.can_start || p.job_id; });
+    var blocked = projects.filter(function (p) { return !p.can_start && !p.job_id; });
+
+    if (!projects.length) {
+      frag.appendChild(blank("◌", "Список проектов недоступен."));
+      return;
+    }
+    if (ready.length) {
+      ready.forEach(function (p) { frag.appendChild(projectCard(p, canWrite, won[p.id])); });
+    } else {
+      frag.appendChild(blank("✓", "Everything done — свободных кошельков нет ни в одном проекте."));
+    }
+
+    if (blocked.length) {
+      var fold = el("div", "fold");
+      fold.appendChild(el("span", null, "Недоступны сейчас"));
+      fold.appendChild(el("b", null, (showBlocked ? "▾ " : "▸ ") + blocked.length));
+      fold.onclick = function () { tap(); showBlocked = !showBlocked; render(last); };
+      frag.appendChild(fold);
+      if (showBlocked) {
+        blocked.forEach(function (p) { frag.appendChild(projectCard(p, canWrite, won[p.id])); });
+      }
+    }
+  }
+
+  // ---- queue --------------------------------------------------------------
+
+  function blank(icon, text, buttonLabel, onTap) {
+    var box = el("div", "blank");
+    box.appendChild(el("i", null, icon));
+    box.appendChild(el("p", null, text));
+    if (buttonLabel) {
+      var b = el("button", null, buttonLabel);
+      b.onclick = onTap;
+      box.appendChild(b);
+    }
+    return box;
+  }
+
+  function counts(job) {
+    var box = el("div", "counts");
+    function part(cls, label, n) {
+      if (!n) return;
+      var s = el("span", cls, label + " ");
+      s.appendChild(el("b", null, num(n)));
+      box.appendChild(s);
+    }
+    part("c-ok", "Успешно", job.ok);
+    part("", "Уже были", job.already);
+    part("c-bad", "Отклонены", job.bad);
+    part("c-fail", "Технические", job.fail);
+    return box.childNodes.length ? box : null;
+  }
+
+  function jobCard(job, live, canWrite) {
+    var card = el("div", "job" + (live ? " live" : ""));
+    var top = el("div", "job-top");
+    var left = el("div");
+    left.style.minWidth = "0";
+    left.appendChild(el("div", "job-name", job.project));
+    if (live) left.appendChild(el("div", "job-sub",
+      num(job.done) + " из " + num(job.total) + " · " + job.percent + "%"));
+    top.appendChild(left);
+
+    var right = el("div", "job-top");
+    var cls = job.status === "running" || job.status === "queued" ? "run"
+            : job.status === "done" ? "ok"
+            : job.status === "error" ? "err"
+            : job.status === "cancelled" ? "" : "warn";
+    right.appendChild(el("span", "tag " + cls, job.status_ru));
+    if (canWrite && (job.status === "queued" || job.status === "running")) {
+      var stop = el("button", "ghost small", "Стоп");
+      stop.onclick = function () {
+        tap();
+        confirm("Остановить «" + job.project + "»?", function () {
+          act("api/cancel", { job_id: job.id }, stop);
+        });
+      };
+      right.appendChild(stop);
+    }
+    top.appendChild(right);
+    card.appendChild(top);
+
+    if (live) {
+      var bar = el("div", "bar");
+      var fill = el("i");
+      fill.style.width = job.percent + "%";
+      bar.appendChild(fill);
+      card.appendChild(bar);
+    }
+    var c = counts(job);
+    if (c) card.appendChild(c);
+    return card;
+  }
+
+  function tabQueue(s, canWrite, frag) {
+    if (s.active.length) {
+      frag.appendChild(el("h2", null, "Сейчас работает"));
+      s.active.forEach(function (j) { frag.appendChild(jobCard(j, true, canWrite)); });
+    } else {
+      frag.appendChild(blank("⚡", "Ничего не идёт.", "К проектам", function () {
+        tap(); tab = "projects"; render(last);
+      }));
+    }
+
+    if (s.recent.length) {
+      frag.appendChild(el("h2", null, "Недавние"));
+      var shown = showAllRecent ? s.recent : s.recent.slice(0, 5);
+      shown.forEach(function (j) { frag.appendChild(jobCard(j, false, canWrite)); });
+      if (s.recent.length > shown.length) {
+        var more = el("button", "ghost small", "Показать все " + s.recent.length);
+        more.onclick = function () { tap(); showAllRecent = true; render(last); };
+        frag.appendChild(more);
+      }
+    }
+
+    var r = s.report || {};
+    if (r.has && r.errors_total) {
+      frag.appendChild(el("h2", null, "Ошибки последнего запуска"));
+      var fold = el("div", "fold");
+      fold.appendChild(el("span", null, r.errors_total + " строк"));
+      fold.appendChild(el("b", null, showErrors ? "▾" : "▸"));
+      fold.onclick = function () { tap(); showErrors = !showErrors; render(last); };
+      frag.appendChild(fold);
+      if (showErrors) {
+        var box = el("div", "list errs");
+        // Twenty at a time: the rest is a log, and a log on a phone is scrolled
+        // past rather than read.
+        r.errors.slice(0, 20).forEach(function (line) {
+          box.appendChild(el("div", "line", line));
+        });
+        if (r.errors_total > 20) {
+          box.appendChild(el("div", "line", "…и ещё " + (r.errors_total - 20)));
+        }
+        frag.appendChild(box);
+      }
+    }
+
+    frag.appendChild(statsSection());
+  }
+
+  function statsSection() {
+    var card = el("div", "setup");
+    var head = el("div", "setup-top");
+    head.appendChild(el("span", "setup-title", "📊 Моя неделя"));
+    var seg = el("div", "acts");
+    [7, 30].forEach(function (d) {
+      var b = el("button", d === statsDays ? "small" : "ghost small", d + " дн.");
+      b.onclick = function () { tap(); statsDays = d; render(last); };
+      seg.appendChild(b);
+    });
+    head.appendChild(seg);
+    card.appendChild(head);
+
+    var cached = statsCache[statsDays];
+    // Fetched on an explicit tap and cached for two minutes: /api/state polls
+    // every few seconds, and a submissions range scan must not ride along.
+    if (cached && Date.now() - cached.at < 120000) {
+      card.appendChild(statsBody(cached.data));
+    } else {
+      var ph = el("div", "setup-val", "загрузка…");
+      card.appendChild(ph);
+      post("api/stats", { days: statsDays }, function (status, text) {
+        if (status !== 200) { ph.textContent = "недоступно"; return; }
+        try {
+          var data = JSON.parse(text);
+          statsCache[statsDays] = { at: Date.now(), data: data };
+          if (statsDays === data.days) {
+            var fresh = statsSection();
+            ph.replaceWith(fresh);
+          }
+        } catch (e) { ph.textContent = "недоступно"; }
+      });
+    }
+    return card;
+  }
+
+  function statsBody(d) {
+    var wrap = el("div");
+
+    var totals = d.totals || {};
+    var sum = (totals.ok || 0) + (totals.already || 0) + (totals.bad || 0) + (totals.fail || 0);
+    var line = el("div", "setup-val");
+    line.appendChild(document.createTextNode(
+      "успешно " + num(totals.ok || 0) +
+      " · уже были " + num(totals.already || 0) +
+      " · отклонены " + num(totals.bad || 0) +
+      " · ошибки " + num(totals.fail || 0)));
+    wrap.appendChild(line);
+    if (!sum) {
+      wrap.appendChild(el("div", "hint", "За период ничего не отправлялось."));
+      return wrap;
+    }
+
+    // One bar per day, heights are numbers only — no markup ever enters.
+    var days = Object.keys(d.by_day || {}).sort();
+    var chart = el("div", "chart");
+    var max = 1;
+    days.forEach(function (k) {
+      var b = d.by_day[k];
+      max = Math.max(max, (b.ok || 0) + (b.already || 0) + (b.bad || 0) + (b.fail || 0));
+    });
+    days.forEach(function (k) {
+      var b = d.by_day[k];
+      var col = el("div", "chart-col");
+      var bar = el("div", "chart-bar ok");
+      bar.style.height = Math.max(4, Math.round(96 * ((b.ok || 0)) / max)) + "px";
+      col.appendChild(bar);
+      if ((b.fail || 0) + (b.bad || 0) > 0) {
+        var err = el("div", "chart-bar err");
+        err.style.height = Math.max(2, Math.round(24 * ((b.fail || 0) + (b.bad || 0)) / max)) + "px";
+        col.appendChild(err);
+      }
+      col.appendChild(el("div", "chart-cap", k.slice(5)));
+      chart.appendChild(col);
+    });
+    wrap.appendChild(chart);
+
+    (d.by_project || []).forEach(function (p) {
+      var row = el("div", "fold");
+      row.appendChild(el("span", null, p.name || p.project_id));
+      row.appendChild(el("b", null, num(p.ok) + (p.already ? "+" + num(p.already) : "")));
+      wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
+  // ---- mine ---------------------------------------------------------------
+
+  function proxyHealthNote(h) {
+    if (!h || !h.fails_proxy) return "";
+    return " Прокси-сбои за 24 ч: " + h.fails_proxy + " из " + h.rows + " строк.";
+  }
+
+  function setupCard(o) {
+    var card = el("div", "setup" + (o.warn ? " warn" : ""));
+    var top = el("div", "setup-top");
+    top.appendChild(el("span", "setup-title", o.title));
+    card.appendChild(top);
+    card.appendChild(el("div", "setup-val", o.value));
+    if (!o.canWrite) return card;
+
+    var acts = el("div", "acts");
+    var file = el("button", "small", "Файл .txt");
+    file.onclick = function () { tap(); pickFile(function (t) { upload(o.uploadPath, t, file); }); };
+    acts.appendChild(file);
+    var toggle = el("button", "ghost small", editor === o.key ? "Свернуть" : "Вставить текстом");
+    toggle.onclick = function () {
+      tap(); editor = editor === o.key ? null : o.key; draft = ""; render(last);
+    };
+    acts.appendChild(toggle);
+    if (o.clearPath && o.canClear) {
+      var clear = el("button", "ghost small", "Удалить");
+      clear.onclick = function () {
+        confirm(o.clearWarning, function () { act(o.clearPath, {}, clear); });
+      };
+      acts.appendChild(clear);
+    }
+    if (o.rowDelete) {
+      var del1 = el("button", "ghost small", "−строку");
+      del1.onclick = function () {
+        tap();
+        var v = prompt("Номер строки (1–" + n + "):", "");
+        if (v === null) return;
+        var row = parseInt(v, 10);
+        if (!row || row < 1 || row > n) { toast("Номер: 1–" + n + "."); return; }
+        confirm("Удалить строку " + row + "?", function () {
+          act(o.rowDelete, { row: row }, del1);
+        });
+      };
+      acts.appendChild(del1);
+    }
+    card.appendChild(acts);
+
+    if (editor === o.key) {
+      var ta = el("textarea");
+      ta.placeholder = o.placeholder;
+      ta.value = draft;
+      ta.oninput = function () { draft = ta.value; };
+      card.appendChild(ta);
+      var send = el("button", "small", "Сохранить");
+      send.onclick = function () {
+        if (!ta.value.trim()) { toast("Пусто — нечего сохранять."); return; }
+        upload(o.uploadPath, ta.value, send);
+      };
+      var line = el("div", "acts");
+      line.appendChild(send);
+      card.appendChild(line);
+    }
+    if (o.hint) card.appendChild(el("div", "hint", o.hint));
+    return card;
+  }
+
+  function paymentCard(pay, canWrite) {
+    var card = el("div", "setup");
+    card.appendChild(el("div", "setup-title", "Счёт · " + (pay.plan || "")));
+    card.appendChild(el("div", "setup-val",
+      "статус: " + pay.status + (pay.credited ? " · зачислено" : "")));
+    card.appendChild(el("div", "pay-label", "перевести ровно"));
+    card.appendChild(el("div", "mono",
+      pay.pay_amount + " " + (pay.pay_currency || "").toUpperCase()));
+    card.appendChild(el("div", "pay-label", "на адрес"));
+    // Full and unformatted: this gets copied into a wallet, and a prettified or
+    // shortened address sends money nowhere.
+    card.appendChild(el("div", "mono", pay.pay_address));
+    var acts = el("div", "acts");
+    var copy = el("button", "small", "Копировать адрес");
+    copy.onclick = function () { copyText(pay.pay_address); };
+    acts.appendChild(copy);
+    var amt = el("button", "ghost small", "Сумму");
+    amt.onclick = function () { copyText(String(pay.pay_amount)); };
+    acts.appendChild(amt);
+    if (canWrite && !pay.credited) {
+      var chk = el("button", "ghost small", "Проверить");
+      chk.onclick = function () { act("api/pay/check", { payment_id: pay.payment_id }, chk); };
+      acts.appendChild(chk);
+      var drop = el("button", "ghost small", "Отменить");
+      drop.onclick = function () {
+        confirm("Отменить счёт? Уже отправленный перевод всё равно зачислится.", function () {
+          act("api/pay/cancel", { payment_id: pay.payment_id }, drop);
+        });
+      };
+      acts.appendChild(drop);
+    }
+    card.appendChild(acts);
+    if (pay.valid_until) card.appendChild(el("div", "hint", "действует до " + pay.valid_until));
+    return card;
+  }
+
+  function tabMine(s, canWrite, frag) {
+    var d = s.data || {}, n = d.count || 0;
+    var p = s.proxies || {};
+    var src = { own: "свои", shared: "общий пул", corrupt: "не читается", none: "нет" };
+
+    var duo = el("div", "duo");
+    var b1 = el("div", "big" + (n ? "" : " warn"));
+    b1.appendChild(el("div", "big-num", num(n)));
+    b1.appendChild(el("div", "big-cap", "аккаунтов"));
+    duo.appendChild(b1);
+    var b2 = el("div", "big" + (p.source === "none" || p.source === "corrupt" ? " warn" : ""));
+    b2.appendChild(el("div", "big-num", num(p.count)));
+    b2.appendChild(el("div", "big-cap", "прокси · " + (src[p.source] || p.source)));
+    duo.appendChild(b2);
+    frag.appendChild(duo);
+
+    frag.appendChild(setupCard({
+      key: "data", title: "Аккаунты",
+      value: n ? n + " строк загружено" : "не загружены — без них запускать нечего",
+      warn: !n, canWrite: canWrite, canClear: n > 0,
+      uploadPath: "api/data", clearPath: "api/data/clear",
+      clearWarning: "Удалить все " + n + " строк?",
+      rowDelete: n > 0 ? "api/data/delete_row" : null,
+      placeholder: "handle|0xWallet\nhandle,0xWallet",
+      hint: "Новый файл заменяет старый целиком. До " + (d.max_lines || 1000) + " строк."
+    }));
+    var poolOff = p.shared_enabled === false;
+    var proxyHint = poolOff
+      ? "Общий пул выключен — без своих прокси регистрации не идут."
+      : "Регистрации пойдут через твои прокси.";
+    var proxyCard = setupCard({
+      key: "proxies", title: "Прокси",
+      value: (src[p.source] || p.source) + (p.count ? " · " + p.count + " шт." : ""),
+      warn: p.source === "none" || p.source === "corrupt" || poolOff,
+      canWrite: canWrite && p.may_upload, canClear: !!p.own_file,
+      uploadPath: "api/proxies", clearPath: "api/proxies/clear",
+      clearWarning: poolOff
+        ? "Удалить свои прокси? Общий пул выключен — без них регистрации остановятся."
+        : "Удалить свои прокси? Регистрации снова пойдут через общий пул.",
+      placeholder: "host:port:user:pass",
+      hint: proxyHint + proxyHealthNote(p.health)
+    });
+    if (canWrite && p.own_file) {
+      var checkBtn = el("button", "ghost small", "🧪 Проверить прокси");
+      checkBtn.onclick = function () {
+        tap();
+        act("api/proxies/check", {}, checkBtn);
+      };
+      var acts = proxyCard.querySelector(".acts") || el("div", "acts");
+      acts.insertBefore(checkBtn, acts.firstChild);
+      proxyCard.appendChild(acts);
+    }
+    var chk = p.check || null;
+    if (chk && chk.status === "running") {
+      proxyCard.appendChild(el("div", "setup-val", "🧪 Проверяю прокси (до минуты)…"));
+    } else if (chk && chk.status === "done") {
+      var lines = ["🧪 Живых " + (chk.alive || 0) + " из " + (chk.results || []).length
+                   + (chk.total > (chk.results || []).length
+                      ? " · проверены первые " + (chk.results || []).length + " из " + chk.total
+                      : "")];
+      (chk.results || []).forEach(function (r) {
+        lines.push(r.ok
+          ? "✅ " + r.label + " · " + r.ms + " ms · ip " + (r.ip || "?")
+          : "❌ " + r.label + " — " + (r.error || "ошибка"));
+      });
+      var rep = el("div", "setup-val");
+      rep.style.whiteSpace = "pre";
+      rep.textContent = lines.join("\n");
+      proxyCard.appendChild(rep);
+    }
+    frag.appendChild(proxyCard);
+
+    // --- own captcha key (projects with a captcha run on this balance) ---
+    var su = s.setup || {};
+    var keyCard = el("div", "setup" + (su.captcha_key ? "" : " warn"));
+    keyCard.appendChild(el("div", "setup-title", "🔑 Ключ капчи"));
+    keyCard.appendChild(el("div", "setup-val", su.captcha_key
+      ? su.captcha_key
+      : "не задан — проекты с капчей закрыты"));
+    if (canWrite) {
+      var kacts = el("div", "acts");
+      var kedit = el("button", "ghost small",
+                     editor === "capkey" ? "Свернуть" : "Вставить ключ");
+      kedit.onclick = function () {
+        tap(); editor = editor === "capkey" ? null : "capkey"; draft = ""; render(last);
+      };
+      kacts.appendChild(kedit);
+      if (su.captcha_key) {
+        var kclear = el("button", "ghost small", "Удалить");
+        kclear.onclick = function () {
+          confirm("Удалить ключ капчи? Проекты с капчей закроются.", function () {
+            act("api/keys/clear", {}, kclear);
+          });
+        };
+        kacts.appendChild(kclear);
+      }
+      keyCard.appendChild(kacts);
+      if (editor === "capkey") {
+        var sel = el("select");
+        sel.style.cssText = "width:100%;margin:8px 0 4px;padding:10px;border-radius:10px;"
+          + "background:#1c1f2b;color:#e8e9f2;border:1px solid #33374d;";
+        [["capsolver", "Capsolver"], ["2captcha", "2Captcha"],
+         ["anticaptcha", "Anti-Captcha"]].forEach(function (p) {
+          var o = el("option", null, p[1]); o.value = p[0]; sel.appendChild(o);
+        });
+        keyCard.appendChild(sel);
+        var kta = el("textarea");
+        kta.placeholder = "ключ провайдера";
+        kta.value = draft;
+        kta.oninput = function () { draft = kta.value; };
+        keyCard.appendChild(kta);
+        var ksend = el("button", "small", "Проверить и сохранить");
+        ksend.onclick = function () {
+          if (!kta.value.trim()) { toast("Пусто — нечего сохранять."); return; }
+          act("api/keys", { provider: sel.value, key: kta.value.trim() }, ksend,
+              function (res) { if (res.ok) { editor = null; draft = ""; } });
+        };
+        var kline = el("div", "acts");
+        kline.appendChild(ksend);
+        keyCard.appendChild(kline);
+      }
+      keyCard.appendChild(el("div", "hint",
+        "Со своим ключом проекты с капчей идут за твой счёт — баланс бота не тратится."));
+    }
+    frag.appendChild(keyCard);
+
+    // --- auto-registration toggle ---
+    var arCard = el("div", "setup" + (su.auto_reg && !n ? " warn" : ""));
+    arCard.appendChild(el("div", "setup-title", "⚡ Авторег"));
+    arCard.appendChild(el("div", "setup-val", su.auto_reg
+      ? "включён — новый проект запускается сам" + (n ? "" : ", но аккаунтов нет (/data)")
+      : "выключен — запускай проекты вручную"));
+    if (canWrite) {
+      var aracts = el("div", "acts");
+      var art = el("button", (su.auto_reg ? "ghost " : "") + "small",
+                   su.auto_reg ? "Выключить" : "Включить");
+      art.onclick = function () {
+        act("api/autoreg", { on: !su.auto_reg }, art);
+      };
+      aracts.appendChild(art);
+      arCard.appendChild(aracts);
+      arCard.appendChild(el("div", "hint",
+        "Появляется новый проект → твои аккаунты регаются сами, в рамках лимита; по завершении придёт уведомление."));
+    }
+    frag.appendChild(arCard);
+
+    // --- mint reminders toggle (only when the calendar is on at all) ---
+    if (su.mints_enabled) {
+      var mrCard = el("div", "setup" + (su.mint_remind ? " warn" : ""));
+      mrCard.appendChild(el("div", "setup-title", "⏰ Напоминания о минтах"));
+      mrCard.appendChild(el("div", "setup-val", su.mint_remind
+        ? "включены — за час до окна минта придёт уведомление"
+        : "выключены"));
+      if (canWrite) {
+        var mracts = el("div", "acts");
+        var mrt = el("button", (su.mint_remind ? "ghost " : "") + "small",
+                     su.mint_remind ? "Выключить" : "Включить");
+        mrt.onclick = function () {
+          act("api/mintremind", { on: !su.mint_remind }, mrt);
+        };
+        mracts.appendChild(mrt);
+        mrCard.appendChild(mracts);
+        mrCard.appendChild(el("div", "hint",
+          "Времена — UTC, как проекты объявляют; ссылка на минт — в самом уведомлении."));
+      }
+      frag.appendChild(mrCard);
+    }
+
+    var b = s.billing || {};
+    var pk = s.privatka || {};
+    var tier = (s.caps && s.caps.tier) || "free";
+    if (pk.enabled) {
+    frag.appendChild(el("h2", null, "Приватка"));
+    var vip = el("div", "vip");
+    vip.appendChild(el("div", "vip-name", (b.active ? "BASIC" : tier.toUpperCase())));
+    vip.appendChild(el("div", "vip-sub", pk.basic_line
+      || (b.active ? ("до " + b.active.until)
+      : (pk.url ? "оплата: @" + pk.url.split("/").pop() : ""))));
+    frag.appendChild(vip);
+    if (pk.url) {
+      var pbtn = el("button", "small");
+      pbtn.textContent = "⭐ Приватка";
+      pbtn.onclick = function () {
+        tap();
+        if (tg && tg.openTelegramLink) tg.openTelegramLink(pk.url);
+        else openLink(pk.url);
+      };
+      frag.appendChild(pbtn);
+    }
+    }
+
+    if (b.enabled && b.open_payment) {
+      frag.appendChild(paymentCard(b.open_payment, canWrite));
+    }
+
+    if (s.totals.length) {
+      frag.appendChild(el("h2", null, "Успешных по проектам"));
+      var box = el("div", "list");
+      s.totals.slice(0, 6).forEach(function (t) {
+        var line = el("div", "line");
+        line.appendChild(el("span", null, t.project + (t.live ? "" : " · выключен")));
+        line.appendChild(el("b", null, num(t.ok_count)));
+        box.appendChild(line);
+      });
+      var hidden = Math.max(0, s.totals.length - 6) + (s.totals_hidden || 0);
+      if (hidden > 0) {
+        var rest = el("div", "line");
+        rest.appendChild(el("span", null, "и ещё " + hidden + " проектов"));
+        box.appendChild(rest);
+      }
+      frag.appendChild(box);
+    }
+
+    frag.appendChild(el("h2", null, "Прочее"));
+    var langCard = el("div", "setup");
+    var lt = el("div", "setup-top");
+    lt.appendChild(el("span", "setup-title", "Язык"));
+    var langs = el("div", "acts");
+    langs.style.marginTop = "0";
+    ["ru", "en"].forEach(function (code) {
+      var lb = el("button", (s.lang === code ? "" : "ghost ") + "small", code.toUpperCase());
+      lb.onclick = function () { act("api/lang", { lang: code }, lb); };
+      langs.appendChild(lb);
+    });
+    lt.appendChild(langs);
+    langCard.appendChild(lt);
+    frag.appendChild(langCard);
+
+    if (!canWrite) return;
+    var sug = el("div", "setup");
+    sug.appendChild(el("div", "setup-title", "Предложить проект"));
+    sug.appendChild(el("div", "setup-val", "название и ссылка · одно в сутки"));
+    if (editor === "suggest") {
+      var ta = el("textarea");
+      ta.placeholder = "Название проекта и ссылка";
+      ta.value = draft;
+      ta.oninput = function () { draft = ta.value; };
+      sug.appendChild(ta);
+    }
+    var row2 = el("div", "acts");
+    var toggle = el("button", "ghost small", editor === "suggest" ? "Свернуть" : "Написать");
+    toggle.onclick = function () {
+      tap(); editor = editor === "suggest" ? null : "suggest"; draft = ""; render(last);
+    };
+    row2.appendChild(toggle);
+    if (editor === "suggest") {
+      var send = el("button", "small", "Отправить");
+      send.onclick = function () {
+        if (!draft.trim()) { toast("Пусто."); return; }
+        act("api/suggest", { text: draft.trim() }, send, function (r) {
+          if (r.ok) { editor = null; draft = ""; }
+        });
+      };
+      row2.appendChild(send);
+    }
+    sug.appendChild(row2);
+    frag.appendChild(sug);
+  }
+
+  // ---- mints --------------------------------------------------------------
+
+  var MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн",
+                "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+  function localTime(iso) {
+    // Stored UTC, shown in the reader's own zone. A calendar that makes people
+    // convert in their head is a calendar people miss mints by — so the local
+    // time leads and UTC rides alongside in small type for cross-checking
+    // against the project's own announcement.
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    return {
+      day: d.getDate() + " " + MONTHS[d.getMonth()],
+      dayKey: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()),
+      weekday: ["вс", "пн", "вт", "ср", "чт", "пт", "сб"][d.getDay()],
+      time: pad(d.getHours()) + ":" + pad(d.getMinutes()),
+      utc: pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + " UTC",
+      today: d.toDateString() === new Date().toDateString()
+    };
+  }
+
+  function mintLinks(row) {
+    var box = el("div", "mint-links");
+    // Mint page first and highlighted: at the moment someone reads "public
+    // 18:00" what they want is the page they will mint on, not a profile.
+    [[row.mint_url, "Минт", true], [row.apply_url, "Заявка", false],
+     [row.site_url, "Сайт", false], [row.twitter_url, "X", false]].forEach(function (pair) {
+      if (!pair[0]) return;
+      var b = el("span", "lnk" + (pair[2] ? " go" : ""), pair[1]);
+      b.onclick = function () { tap(); openLink(pair[0]); };
+      box.appendChild(b);
+    });
+    return box.childNodes.length ? box : null;
+  }
+
+  function mintCard(row, soon) {
+    // One card for everything. A project whose only information is a sentence
+    // somebody typed gets the same shape as one with three parsed phases —
+    // the difference belongs in what the card says, not in how it looks.
+    var card = el("div", "mint" + (soon ? "" : " later"));
+
+    var top = el("div", "mint-top");
+    top.appendChild(el("span", "mint-name", row.project));
+    var meta = [];
+    if (row.supply) meta.push(num(row.supply) + " шт");
+    if (row.chain) meta.push(row.chain);
+    if (meta.length) top.appendChild(el("span", "mint-meta", meta.join(" · ")));
+    card.appendChild(top);
+
+    row.phases.forEach(function (ph) {
+      var line = el("div", "phase" + (ph.past ? " past" : ""));
+      var when = ph.starts_at ? localTime(ph.starts_at) : null;
+      line.appendChild(el("span", "phase-time", when ? when.time : "—"));
+      // `tba` is the absence of a phase, not a phase: showing it as a chip
+      // beside a time that also says TBA read as "TBA TBA".
+      var label = ph.kind === "tba" ? (when ? "Минт" : "") : ph.label;
+      if (label) line.appendChild(el("span", "phase-kind", label));
+      if (when) line.appendChild(el("span", "phase-utc", when.utc));
+      else line.appendChild(el("span", "phase-utc", "дата не объявлена"));
+      if (ph.price) line.appendChild(el("span", "phase-price", ph.price));
+      card.appendChild(line);
+    });
+
+    if (row.note) card.appendChild(el("div", "mint-note", row.note));
+    var links = mintLinks(row);
+    if (links) card.appendChild(links);
+    return card;
+  }
+
+  function tabMints(s, frag) {
+    var m = s.mints || {};
+    var rows = m.rows || [];
+    if (!rows.length) {
+      frag.appendChild(blank("◷", "Пока ничего не известно про минты."));
+      return;
+    }
+
+    // Grouped by the day of the next phase — nearest first — with everything
+    // undated gathered at the end under one heading rather than scattered.
+    var lastKey = null;
+    rows.forEach(function (row) {
+      var when = row.next_at ? localTime(row.next_at) : null;
+      var key = when ? when.dayKey : "later";
+      if (key !== lastKey) {
+        var head = el("div", "day" + (when && when.today ? " soon" : ""));
+        if (when) {
+          head.appendChild(el("b", null, when.day));
+          head.appendChild(el("span", null, when.today ? "сегодня" : when.weekday));
+        } else {
+          head.appendChild(el("b", null, "Дата не объявлена"));
+          head.appendChild(el("span", null, "TBA"));
+        }
+        frag.appendChild(head);
+        lastKey = key;
+      }
+      frag.appendChild(mintCard(row, !!when));
+    });
+
+    if (m.may_edit) {
+      frag.appendChild(el("div", "hint",
+        "/mints — неподтверждённые находки · /mint — правка вручную"));
+    }
+  }
+
+  // ---- gform constructor ---------------------------------------------------
+
+  // What the screen is editing: the parsed form (fields + suggestions) and the
+  // mapping being built. Both survive polls — the poll guard in load() skips
+  // while a form is open, exactly like the accounts editor.
+  var gformForm = null;    // {title, url, fields:[{entry,title,options,required,suggest}]}
+  var gformMap = {};       // entry -> {source, value}
+  var gformName = "", gformLink = "";   // the user's own project labels
+  var GF_SOURCES = [
+    ["skip", "Пропустить"],
+    ["wallet", "EVM кошелёк"],
+    ["handle", "X / Twitter юзернейм"],
+    ["quote_url", "Генератор quote URL"],
+    ["comment_url", "Генератор comment URL"],
+    ["option", "Чекбокс / кнопка формы"],
+    ["static", "Статический текст"]
+  ];
+
+  function gfSourceOf(entry) {
+    var m = gformMap[entry];
+    if (!m || m.source === "skip") return "";
+    if (m.source === "option") return m.value ? "option:" + m.value : "";
+    if (m.source === "static") return m.value ? "static:" + m.value : "";
+    return m.source;
+  }
+
+  function gfReady() {
+    if (!gformForm) return false;
+    var hasWallet = false, requiredOk = true;
+    gformForm.fields.forEach(function (f) {
+      var src = gfSourceOf(f.entry);
+      if (src === "wallet") hasWallet = true;
+      if (f.required && !src) requiredOk = false;
+    });
+    return hasWallet && requiredOk;
+  }
+
+  function gfFieldCard(f) {
+    var mapped = gfSourceOf(f.entry);
+    var card = el("div", "gf-field" + (f.required && !mapped ? " unmapped" : ""));
+    var title = f.title || "Вопрос без заголовка";
+    var t = el("div", "gf-title");
+    t.appendChild(document.createTextNode(title + " "));
+    if (f.required) t.appendChild(el("span", "req", "*"));
+    card.appendChild(t);
+    card.appendChild(el("div", "gf-entry", f.entry));
+    var m = gformMap[f.entry] = gformMap[f.entry] ||
+      { source: (f.suggest || "skip").split(":")[0], value: "" };
+    if (!m.value && f.suggest && f.suggest.indexOf(":") > -1) {
+      m.value = f.suggest.split(":").slice(1).join(":");
+    }
+    // A choice field always starts on a variant with that variant selected —
+    // an option source with an empty value reads as unmapped and blocks the
+    // create button for no visible reason.
+    if (f.options && f.options.length) {
+      if (m.source !== "option" && m.source !== "skip") m.source = "option";
+      if (m.source === "option" && !m.value) m.value = f.options[0];
+    }
+    var row = el("div", "gf-row");
+    var sel = document.createElement("select");
+    // A field with fixed variants takes only one of its variants (or skip):
+    // everything else is a per-row HTTP 400, so it is not even offered.
+    var sources = (f.options && f.options.length)
+      ? [["skip", "Пропустить"], ["option", "Вариант формы"]]
+      : GF_SOURCES.filter(function (s) { return s[0] !== "option"; });
+    sources.forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s[0]; o.textContent = s[1];
+      if (s[0] === m.source) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.onchange = function () { m.source = sel.value; render(last); };
+    row.appendChild(sel);
+    if (m.source === "option" && f.options && f.options.length) {
+      var osel = document.createElement("select");
+      f.options.forEach(function (opt, i) {
+        var o = document.createElement("option");
+        o.value = opt; o.textContent = opt;
+        if (opt === (m.value || f.options[0])) o.selected = true;
+        osel.appendChild(o);
+      });
+      osel.onchange = function () { m.value = osel.value; render(last); };
+      row.appendChild(osel);
+    } else if (m.source === "static") {
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.value = m.value || "";
+      inp.placeholder = "Текст для отправки";
+      inp.onfocus = function () { editor = "gform"; };
+      inp.onblur = function () { editor = null; };
+      inp.oninput = function () { m.value = inp.value; };
+      inp.onchange = function () { m.value = inp.value; render(last); };
+      row.appendChild(inp);
+    }
+    card.appendChild(row);
+    // What the row will actually carry — the preview is the honest answer to
+    // "did I map this right", shown before anything is created or sent.
+    var pv = el("div", "gf-preview");
+    pv.appendChild(document.createTextNode("уйдёт: "));
+    var src = gfSourceOf(f.entry);
+    var shown = "ничего (не отправляется)";
+    if (src === "wallet") shown = "0x… — кошелёк из твоего списка";
+    else if (src === "handle") shown = "@юзернейм из твоего списка";
+    else if (src === "quote_url" || src === "comment_url") shown = "x.com/…/status/… (сгенерируется)";
+    else if (src) shown = src.split(":").slice(1).join(":") || "—";
+    pv.appendChild(el("b", null, shown));
+    card.appendChild(pv);
+    return card;
+  }
+
+  function gfList(s, canWrite) {
+    var box = el("div");
+    var forms = (s && s.gforms) || [];
+    box.appendChild(el("h2", null, "Мои формы (" + forms.length + ")"));
+    if (!forms.length) {
+      box.appendChild(el("div", "hint",
+        "Созданных форм пока нет. Вставь ссылку на публичную Google-форму выше."));
+      return box;
+    }
+    forms.forEach(function (f) {
+      var card = el("div", "card");
+      var row = el("div", "card-row");
+      var name = el("span", "card-name", f.name);
+      name.style.overflow = "visible"; name.style.whiteSpace = "normal";
+      row.appendChild(name);
+      row.appendChild(el("span", "tag" + (f.public ? " ok" : ""),
+                         f.public ? "всем" : "личная"));
+      if (canWrite) {
+        var del = el("button", "ghost small", "Удалить");
+        del.onclick = function () {
+          tap();
+          confirm("Удалить форму «" + f.name + "»? Проект исчезнет из списка; " +
+                  "история регистраций останется.", function () {
+            gformForm = null; gformMap = {}; gformName = ""; gformLink = "";
+            act("api/gform/delete", { project_id: f.id }, del, null);
+          });
+        };
+        row.appendChild(del);
+      }
+      card.appendChild(row);
+      var d = el("div", "detail");
+      d.appendChild(el("div", null, f.url));
+      card.appendChild(d);
+      box.appendChild(card);
+    });
+    return box;
+  }
+
+  function tabForms(s, canWrite, frag) {
+    var head = el("div", "head");
+    var left = el("div");
+    left.appendChild(el("div", "head-num", "Конструктор"));
+    left.appendChild(el("div", "head-cap", "Google-форм: парсинг полей и источники"));
+    head.appendChild(left);
+    frag.appendChild(head);
+
+    if (!canWrite && s.read_only_reason) {
+      frag.appendChild(el("div", "note", s.read_only_reason));
+      gfList(s, canWrite).childNodes.forEach(function (n) { frag.appendChild(n); });
+      return;
+    }
+
+    if (!gformForm) {
+      var urlBox = el("div", "gf-url");
+      var inp = document.createElement("input");
+      inp.type = "url"; inp.placeholder = "Ссылка на любую публичную Google-форму";
+      inp.onfocus = function () { editor = "gform"; };
+      inp.onblur = function () { editor = null; };
+      urlBox.appendChild(inp);
+      var go = el("button", "warnbtn", "Распарсить");
+      go.onclick = function () {
+        tap();
+        if (busy) return;
+        var u = (inp.value || "").trim();
+        if (!u) { toast("Вставь ссылку вида docs.google.com/forms/…/viewform"); return; }
+        busy = true; go.disabled = true; go.textContent = "Парсим…";
+        post("api/gform/parse", { url: u }, function (status, text) {
+          busy = false; go.disabled = false; go.textContent = "Распарсить";
+          if (status === 429) { toast("Слишком часто. Подожди немного."); return; }
+          if (status !== 200) { toast("Сервер не ответил."); return; }
+          var res;
+          try { res = JSON.parse(text); } catch (e) { return; }
+          haptic(res.ok ? "success" : "error");
+          if (!res.ok) { toast(res.message || "Форма не распарсилась"); return; }
+          gformForm = res.form; gformMap = {};
+          render(last);
+        });
+      };
+      urlBox.appendChild(go);
+      frag.appendChild(urlBox);
+      frag.appendChild(el("div", "hint",
+        "Форма должна быть публичной (без входа в Google и без капчи). " +
+        "Один проект = одна форма, лимит — по твоему тарифу; создатель видит её сразу, " +
+        "остальные — после апрува админа."));
+      frag.appendChild(gfList(s, canWrite));
+      return;
+    }
+
+    // Parsed: field mapping.
+    frag.appendChild(el("h2", null, gformForm.title || "Безымянная Google Форма"));
+    frag.appendChild(el("div", "hint", gformForm.url));
+
+    // The form's own title is rarely the name the user wants (a thousand
+    // forms are called «Free Mint») and the form URL is not the project's
+    // page. Both labels are the user's to set, pre-filled with what we have.
+    var metaRow = el("div", "gf-field");
+    var nameInp = document.createElement("input");
+    nameInp.type = "text";
+    nameInp.value = gformName;
+    nameInp.placeholder = "Название проекта" +
+      (gformForm.title ? " (по умолчанию: " + gformForm.title.slice(0, 40) + ")" : "");
+    nameInp.onfocus = function () { editor = "gform"; };
+    nameInp.onblur = function () { editor = null; gformName = nameInp.value; };
+    nameInp.onchange = function () { gformName = nameInp.value; };
+    var linkInp = document.createElement("input");
+    linkInp.type = "url";
+    linkInp.value = gformLink;
+    linkInp.placeholder = "Ссылка на X или сайт проекта (необязательно)";
+    linkInp.onfocus = function () { editor = "gform"; };
+    linkInp.onblur = function () { editor = null; gformLink = linkInp.value; };
+    linkInp.onchange = function () { gformLink = linkInp.value; };
+    var metaBox = el("div", "gf-row");
+    metaBox.appendChild(nameInp);
+    metaBox.appendChild(linkInp);
+    metaRow.appendChild(metaBox);
+    frag.appendChild(metaRow);
+
+    frag.appendChild(el("h2", null,
+      "Настройка полей (" + gformForm.fields.length + " найдено)"));
+    gformForm.fields.forEach(function (f) { frag.appendChild(gfFieldCard(f)); });
+    if (!gfReady()) {
+      frag.appendChild(el("div", "note bad",
+        "Назначь кошелёк хотя бы одному полю и заполни все обязательные (*)."));
+    }
+    var actions = el("div", "gf-actions");
+    var cancel = el("button", "ghost", "Отмена");
+    cancel.onclick = function () {
+      tap(); gformForm = null; gformMap = {}; gformName = ""; gformLink = "";
+      render(last);
+    };
+    actions.appendChild(cancel);
+    var create = el("button", "warnbtn", "Создать проект из формы");
+    create.disabled = !gfReady();
+    create.onclick = function () {
+      tap();
+      if (busy) return;
+      var mapping = {};
+      gformForm.fields.forEach(function (f) {
+        var src = gfSourceOf(f.entry);
+        if (src && src !== "skip") mapping[f.entry] = src;
+      });
+      gformForm = null; gformMap = {};
+      act("api/gform/create", { mapping: mapping, name: gformName, link: gformLink },
+          create, null);
+      gformName = ""; gformLink = "";
+    };
+    actions.appendChild(create);
+    frag.appendChild(actions);
+    frag.appendChild(gfList(s, canWrite));
+  }
+
+  // ---- chrome -------------------------------------------------------------
+
+  var TABS = [
+    { id: "projects", icon: "◈", label: "Проекты" },
+    { id: "forms", icon: "✚", label: "Конструктор" },
+    { id: "queue", icon: "◐", label: "Очередь" },
+    { id: "mints", icon: "◷", label: "Минты" },
+    { id: "mine", icon: "◎", label: "Настройки" }
+  ];
+
+  function renderTabs(s) {
+    var bar = el("div", "tabs");
+    // The mints tab follows the calendar switch: it was retired with the
+    // season and returns with MINTS_ENABLED, so the state says whether it
+    // exists at all — not the build.
+    var mintsOn = !!(s && s.mints && s.mints.enabled);
+    TABS.forEach(function (t) {
+      if (t.id === "mints" && !mintsOn) return;
+      var b = el("div", "tab" + (tab === t.id ? " on" : ""));
+      b.appendChild(el("i", null, t.icon));
+      b.appendChild(el("span", null, t.label));
+      if (t.id === "queue" && s && s.active.length) {
+        b.appendChild(el("sup", null, s.active.length));
+      }
+      b.onclick = function () {
+        if (tab === t.id) return;
+        tap();
+        tab = t.id;
+        // A tab switch is a fresh look: nothing half-open carries across, and
+        // an unsent draft would be invisible there anyway.
+        openRow = null; editor = null; draft = ""; justStarted = null;
+        gformForm = null; gformMap = {}; gformName = ""; gformLink = "";
+
+        render(last);
+      };
+      bar.appendChild(b);
+    });
+    tabsEl.textContent = "";
+    tabsEl.appendChild(bar);
+  }
+
+  function render(s) {
+    if (!s) return;
+    last = s;
+    var canWrite = !!s.can_write;
+    var frag = document.createDocumentFragment();
+
+    var head = el("div", "head");
+    var left = el("div");
+    left.appendChild(el("div", "head-num", num(s.summary.ok_total)));
+    left.appendChild(el("div", "head-cap", "успешных регистраций"));
+    head.appendChild(left);
+    var tier = (s.caps && s.caps.tier) || "";
+    head.appendChild(el("span", "pill" + (stale ? " grey" : ""),
+                        stale ? "нет связи" : tier.toUpperCase()));
+    frag.appendChild(head);
+
+    if (!canWrite && s.read_only_reason) {
+      frag.appendChild(el("div", "note", s.read_only_reason));
+    }
+    if (s.notice && s.notice.text) {
+      frag.appendChild(el("div", "note", s.notice.text));
+    }
+
+    if (tab === "projects") tabProjects(s, canWrite, frag);
+    else if (tab === "forms") tabForms(s, canWrite, frag);
+    else if (tab === "queue") tabQueue(s, canWrite, frag);
+    else if (tab === "mints" && s.mints && s.mints.enabled) tabMints(s, frag);
+    else tabMine(s, canWrite, frag);
+
+    var mark = el("div", "hint", (canWrite ? "запуск включён" : "только просмотр")
+                  + " · сборка " + BUILD);
+    mark.style.textAlign = "center";
+    mark.style.marginTop = "18px";
+    frag.appendChild(mark);
+
+    app.textContent = "";
+    app.appendChild(frag);
+    renderTabs(s);
+    // The «запущено» flash plays once, on the render that follows the tap.
+    justStarted = null;
+  }
+
+  function fail(msg) {
+    app.textContent = "";
+    app.appendChild(el("div", "note bad", msg));
+  }
+
+  // ---- transport ----------------------------------------------------------
+
+  function post(path, body, onDone) {
+    var initData = tg && tg.initData ? tg.initData : "";
+    if (!initData) {
+      fail("Откройте страницу через Telegram — вне клиента её нечем подтвердить.");
+      // The callback still has to run. `act()` and `upload()` set `busy` before
+      // calling here and clear it in the callback, so returning silently left
+      // `busy` true forever — and `load()` refuses to poll while busy, which
+      // freezes the screen on whatever it last drew. A frozen screen showing
+      // a stale answer is the failure that looks like a wrong answer.
+      onDone(0, "");
+      return;
+    }
+    body.initData = initData;
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", path, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.timeout = 20000;
+    xhr.onload = function () { onDone(xhr.status, xhr.responseText); };
+    xhr.onerror = xhr.ontimeout = function () { onDone(0, ""); };
+    xhr.send(JSON.stringify(body));
+  }
+
+  function upload(path, text, button) {
+    // The file goes up as itself with the credential in a header, so the server
+    // can verify who is asking before it reads half a megabyte of body.
+    if (busy) return;
+    var initData = tg && tg.initData ? tg.initData : "";
+    if (!initData) { toast("Откройте страницу через Telegram."); return; }
+    busy = true;
+    if (button) button.disabled = true;
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", path, true);
+    xhr.setRequestHeader("Content-Type", "text/plain; charset=utf-8");
+    xhr.setRequestHeader("X-Init-Data", initData);
+    xhr.timeout = 60000;
+    xhr.onload = function () {
+      busy = false;
+      if (xhr.status === 429) { toast("Слишком часто. Подождите минуту."); load(); return; }
+      if (xhr.status !== 200) { toast("Сервер не принял файл."); load(); return; }
+      var res;
+      try { res = JSON.parse(xhr.responseText); } catch (e) { load(); return; }
+      haptic(res.ok ? "success" : "error");
+      // Only failures speak. A success toast after every tap is a modal the
+      // user has to dismiss for information the screen already shows — the
+      // row changes state, the badge ticks, the list redraws.
+      if (!res.ok && res.message) toast(res.message);
+      // Only a saved file closes the editor. A rejected one keeps the text
+      // where it is, because the message just said which line to fix.
+      if (res.ok) { editor = null; draft = ""; }
+      if (res.state) { stale = false; render(res.state); } else { load(); }
+    };
+    xhr.onerror = xhr.ontimeout = function () {
+      busy = false;
+      if (button) button.disabled = false;
+      toast("Файл не ушёл — связь оборвалась.");
+    };
+    xhr.send(text);
+  }
+
+  function act(path, body, button, after) {
+    // One action at a time. Two taps racing would both pass the screen's idea
+    // of what is startable; the server would refuse the second, but the user
+    // would read the refusal as the first one failing.
+    if (busy) return;
+    busy = true;
+    if (button) button.disabled = true;
+    post(path, body, function (status, text) {
+      busy = false;
+      if (status === 429) { toast("Слишком часто. Подождите минуту."); load(); return; }
+      if (status !== 200) { toast("Не получилось — сервер не ответил."); load(); return; }
+      var res;
+      try { res = JSON.parse(text); } catch (e) { load(); return; }
+      haptic(res.ok ? "success" : "warning");
+      // Same rule as upload(): a successful tap answers with the screen
+      // itself; only a refusal earns a popup with its sentence.
+      if (!res.ok && res.message) toast(res.message);
+      if (after) after(res);
+      if (res.state) { stale = false; render(res.state); } else { load(); }
+    });
+  }
+
+  function load() {
+    // A poll must never interrupt work in progress: re-rendering under an open
+    // editor would replace the textarea node and take the pasted list with it.
+    // An open gform mapping is the same kind of work — and a typed URL dies to
+    // a poll too, so the url input claims the same editor flag on focus.
+    if (busy || editor || gformForm) return;
+    post("api/state", {}, function (status, text) {
+      if (status === 200) {
+        stale = false;
+        try { render(JSON.parse(text)); }
+        catch (e) { fail("Не удалось разобрать ответ сервера."); }
+      } else if (status === 401) {
+        fail("Telegram не подтвердил сессию. Закройте и откройте приложение заново.");
+      } else if (status === 403) {
+        // Banned, or not subscribed to the required channel. The server sends
+        // the sentence the chat would have sent, so the two surfaces say the
+        // same thing. Polling stops: neither answer changes on its own, and a
+        // screen that keeps asking every four seconds is just noise on a wall
+        // the user has to walk around first.
+        var why = "Доступ закрыт.";
+        try { why = (JSON.parse(text).message || why); } catch (e) {}
+        fail(why);
+        if (timer) { clearInterval(timer); timer = null; }
+      } else if (status === 503) {
+        fail("Сервер не настроен: не задан токен бота.");
+      } else {
+        // Keep whatever is on screen; a blip should not blank the page.
+        stale = true;
+        if (last) render(last);
+      }
+    });
+  }
+
+  renderTabs(null);
+  load();
+  timer = setInterval(load, POLL_MS);
+  document.addEventListener("visibilitychange", function () {
+    // Nothing changes while the app is in the background, so stop asking.
+    if (document.hidden) { clearInterval(timer); timer = null; }
+    else if (!timer) { load(); timer = setInterval(load, POLL_MS); }
+  });
+})();
+</script>
+</body>
+</html>

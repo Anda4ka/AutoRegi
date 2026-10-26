@@ -1,0 +1,14 @@
+id = "example"
+name = "Example Project"
+enabled = false
+order = 100
+ok_limit = 30
+description = "Copy this folder to projects/<id>/ and set enabled = true"
+# Optional public links shown after project is selected:
+# twitter_url = "https://x.com/example"
+# link = "https://example.com"
+# Optional mint announcement on the project screen (plain text, RU + optional
+# EN; mint_url adds a button when the mint lives on its own page):
+# mint_info = "18 авг · 13:00 UTC · 444 шт · 0.0016 ETH"
+# mint_info_en = "18 Aug · 13:00 UTC · 444 pcs · 0.0016 ETH"
+# mint_url = "https://example.com/mint"

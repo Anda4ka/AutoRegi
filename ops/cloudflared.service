@@ -1,0 +1,39 @@
+# Cloudflare tunnel for the Mini App.
+#
+# Installed as `cloudflared-webapp` so it never collides with a system-wide
+# cloudflared service someone adds later:
+#
+#   sudo cp ops/cloudflared.service /etc/systemd/system/cloudflared-webapp.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cloudflared-webapp
+#
+# Runs as ~autoreg because that is who owns ~/.cloudflared/cert.pem and the
+# tunnel credentials — running it as root would mean copying credentials to a
+# second place for no benefit.
+#
+# The connection is outbound only: no port is opened on this host, and nothing
+# has to change in the cloud console.
+
+[Unit]
+Description=Cloudflare tunnel for the autoreg web app
+After=network-online.target webapp.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=autoreg
+Group=autoreg
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target
